@@ -1,0 +1,54 @@
+# Build artifacts
+*.o
+*.elf
+*.img
+*.bin
+*.hex
+*.map
+*.lst
+
+# Linker and debugging
+*.d
+*.su
+
+# Executable and binary formats
+*.out
+*.app
+
+# Archives
+*.a
+*.lib
+
+# Shared objects
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.bak
+
+# GDB history
+.gdb_history
+
+# QEMU temporary files
+qemu.log
+
+# Logs and dumps
+*.log
+*.dump
+core
+
+# Temporary and backup files
+tmp/
+temp/
+*.tmp
+
+# Compilation database
+compile_commands.json

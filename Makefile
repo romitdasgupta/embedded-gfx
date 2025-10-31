@@ -3,7 +3,7 @@ CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
-CFLAGS = -Wall -O2 -mfpu=vfp -mfloat-abi=hard -march=armv7-a -mtune=cortex-a15 \
+CFLAGS = -Wall -O2 -mfpu=vfpv3 -mfloat-abi=hard -march=armv7-a -mtune=cortex-a9 \
          -nostdlib -ffreestanding \
          -Iinclude
 
@@ -29,7 +29,7 @@ clean:
 	rm -f *.img *.elf $(OBJS)
 
 run: kernel8.img
-	qemu-system-arm -M virt -cpu cortex-a15 -m 128 \
-		-kernel kernel8.img -display sdl -serial stdio
+	qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -m 128M \
+		-kernel kernel8.img -serial stdio
 
 .PHONY: all clean run

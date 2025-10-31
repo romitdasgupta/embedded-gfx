@@ -1,6 +1,5 @@
 // gfx/draw.c
 #include "gfx.h"
-#include <math.h>
 
 static inline int abs(int a) {
     return a > 0 ? a : -a;
