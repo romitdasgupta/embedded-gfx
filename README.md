@@ -6,18 +6,34 @@ This project contains embedded graphics code for ARM-based systems.
 
 ### Toolchain Installation
 
+#### Linux (Debian/Ubuntu)
+
 Install the required ARM toolchain and development tools:
 
 ```bash
 sudo apt install gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm gdb-multiarch make
 ```
 
+#### macOS (using Homebrew)
+
+Install the required ARM toolchain and development tools:
+
+```bash
+brew install arm-none-eabi-gcc qemu gdb make
+```
+
+**Note**: On macOS, `gdb` is installed instead of `gdb-multiarch`. You may need to codesign gdb for it to work:
+```bash
+# If gdb fails to run, you may need to codesign it:
+sudo codesign --entitlements - --force --sign - $(which arm-none-eabi-gdb)
+```
+
 #### Package Details
 
-- **gcc-arm-none-eabi**: ARM cross-compiler for bare-metal targets
+- **gcc-arm-none-eabi** / **arm-none-eabi-gcc**: ARM cross-compiler for bare-metal targets
 - **binutils-arm-none-eabi**: Binary utilities (assembler, linker, etc.) for ARM
 - **qemu-system-arm**: ARM system emulator for testing without hardware
-- **gdb-multiarch**: Debugger with support for multiple architectures including ARM
+- **gdb-multiarch** (Linux) / **arm-none-eabi-gdb** (macOS): Debugger with support for multiple architectures including ARM
 - **make**: Build automation tool
 
 ## Getting Started
@@ -63,4 +79,4 @@ If you see these messages, the graphics code is executing correctly.
 
 ## Development
 
-Use QEMU to test your code without physical hardware, and gdb-multiarch for debugging ARM binaries.
+Use QEMU to test your code without physical hardware, and gdb-multiarch (Linux) or arm-none-eabi-gdb (macOS) for debugging ARM binaries.

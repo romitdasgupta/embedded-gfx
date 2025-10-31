@@ -1,7 +1,8 @@
 # GDB script to dump framebuffer and convert to image
 # Usage: 
 #   Terminal 1: qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -m 128M -kernel kernel8.img -s -S
-#   Terminal 2: gdb-multiarch kernel.elf -x utils/screenshot.gdb
+#   Terminal 2 (Linux): gdb-multiarch kernel.elf -x utils/screenshot.gdb
+#   Terminal 2 (macOS): arm-none-eabi-gdb kernel.elf -x utils/screenshot.gdb
 
 target remote :1234
 continue

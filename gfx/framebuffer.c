@@ -30,7 +30,8 @@ void fb_init(int w, int h, int depth, void* base) {
 
     // Configure CLCD for 640x480 @ 16bpp (more compatible)
     // TIM0: Horizontal timing (HBP=40, HFP=24, HSW=96, PPL=640)
-    CLCD_TIM0 = ((640/16 - 1) << 2) | ((24 - 1) << 8) | ((40 - 1) << 16) | ((96 - 1) << 24);
+    // PPL format: (pixels_per_line - 1) in bits [7:2]
+    CLCD_TIM0 = ((640 - 1) << 2) | ((24 - 1) << 8) | ((40 - 1) << 16) | ((96 - 1) << 24);
 
     // TIM1: Vertical timing (VBP=13, VFP=9, VSW=2, LPP=480)
     CLCD_TIM1 = (480 - 1) | ((9 - 1) << 10) | ((13 - 1) << 16) | ((2 - 1) << 24);

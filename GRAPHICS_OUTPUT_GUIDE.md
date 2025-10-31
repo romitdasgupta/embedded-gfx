@@ -50,8 +50,15 @@ QEMU's Raspberry Pi emulation has full graphics support with window output.
 ### Quick Start
 
 1. **Install additional tools** (if needed):
+
+   **Linux (Debian/Ubuntu)**:
    ```bash
    sudo apt install qemu-system-aarch64
+   ```
+
+   **macOS (using Homebrew)**:
+   ```bash
+   brew install qemu
    ```
 
 2. **See detailed porting guide**: `RASPI_PORT.md`
@@ -65,7 +72,7 @@ QEMU's Raspberry Pi emulation has full graphics support with window output.
    ```bash
    qemu-system-arm -M raspi2 -kernel kernel8.img -serial stdio
    ```
-   
+
    **A graphical window will appear!** 🎉
 
 ### Pros
@@ -123,19 +130,27 @@ QEMU's Raspberry Pi emulation has full graphics support with window output.
    qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -m 128M \
      -kernel kernel8.img -s -S -nographic
    ```
-   
+
    Flags:
    - `-s`: Start GDB server on port 1234
    - `-S`: Pause at startup
 
 2. **Terminal 2 - Run GDB and dump framebuffer**:
+
+   **Linux**:
    ```bash
    gdb-multiarch kernel.elf -x utils/screenshot.gdb
    ```
-   
+
+   **macOS**:
+   ```bash
+   arm-none-eabi-gdb kernel.elf -x utils/screenshot.gdb
+   ```
+
    Or manually:
    ```bash
-   gdb-multiarch kernel.elf
+   # Linux: gdb-multiarch kernel.elf
+   # macOS: arm-none-eabi-gdb kernel.elf
    (gdb) target remote :1234
    (gdb) continue
    (gdb) # Wait for graphics to be drawn, then Ctrl+C
@@ -151,8 +166,15 @@ QEMU's Raspberry Pi emulation has full graphics support with window output.
    Requires: `pip install pillow`
 
 4. **View the image**:
+
+   **Linux**:
    ```bash
    xdg-open screenshot.png
+   ```
+
+   **macOS**:
+   ```bash
+   open screenshot.png
    ```
 
 ### Expected Result
@@ -194,6 +216,8 @@ qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -m 128M \
 
 # Terminal 2
 sleep 2  # Let QEMU start
+# Linux: gdb-multiarch kernel.elf
+# macOS: arm-none-eabi-gdb kernel.elf
 gdb-multiarch kernel.elf << EOF
 target remote :1234
 continue
@@ -205,7 +229,9 @@ EOF
 
 # Convert and view
 python3 utils/screenshot.py framebuffer.raw screenshot.png
-xdg-open screenshot.png
+# Linux: xdg-open screenshot.png
+# macOS: open screenshot.png
+open screenshot.png
 
 # Cleanup
 killall qemu-system-arm
