@@ -38,5 +38,7 @@ if __name__ == '__main__':
     
     input_file = sys.argv[1] if len(sys.argv) > 1 else 'framebuffer.raw'
     output_file = sys.argv[2] if len(sys.argv) > 2 else 'screenshot.png'
+    width = int(sys.argv[3]) if len(sys.argv) > 3 else 640
+    height = int(sys.argv[4]) if len(sys.argv) > 4 else 480
     
-    convert_framebuffer(input_file, output_file)
+    convert_framebuffer(input_file, output_file, width, height)

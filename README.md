@@ -1,44 +1,30 @@
 # Embedded Graphics Project
 
-This project contains embedded graphics code for ARM-based systems.
+Bare-metal graphics demo for Raspberry Pi 3B, running on QEMU.
+
+## Features
+
+- 640x480 32-bit framebuffer via VideoCore mailbox protocol
+- Drawing primitives: lines, rectangles, circles
+- PL011 UART serial output for debugging
+- Works in QEMU with visual output
 
 ## Prerequisites
 
-### Toolchain Installation
-
-#### Linux (Debian/Ubuntu)
-
-Install the required ARM toolchain and development tools:
+### macOS (Homebrew)
 
 ```bash
-sudo apt install gcc-arm-none-eabi binutils-arm-none-eabi qemu-system-arm gdb-multiarch make
+brew install aarch64-elf-gcc qemu
+pip3 install pillow  # For screenshot verification
 ```
 
-#### macOS (using Homebrew)
-
-Install the required ARM toolchain and development tools:
+### Linux (Debian/Ubuntu)
 
 ```bash
-brew install arm-none-eabi-gcc qemu gdb make
+sudo apt install gcc-aarch64-linux-gnu qemu-system-aarch64 python3-pil
 ```
 
-**Note**: On macOS, `gdb` is installed instead of `gdb-multiarch`. You may need to codesign gdb for it to work:
-```bash
-# If gdb fails to run, you may need to codesign it:
-sudo codesign --entitlements - --force --sign - $(which arm-none-eabi-gdb)
-```
-
-#### Package Details
-
-- **gcc-arm-none-eabi** / **arm-none-eabi-gcc**: ARM cross-compiler for bare-metal targets
-- **binutils-arm-none-eabi**: Binary utilities (assembler, linker, etc.) for ARM
-- **qemu-system-arm**: ARM system emulator for testing without hardware
-- **gdb-multiarch** (Linux) / **arm-none-eabi-gdb** (macOS): Debugger with support for multiple architectures including ARM
-- **make**: Build automation tool
-
-## Getting Started
-
-After installing the toolchain, you can build and run the project using the provided Makefile.
+## Building
 
 ```bash
 make
@@ -46,37 +32,68 @@ make
 
 ## Running
 
-To run with QEMU:
+### With Graphical Display
 
 ```bash
 make run
-```
-
-Or use the provided script:
-
-```bash
+# Or:
 ./qemu-run.sh
 ```
 
-## Important Note: Graphics Display
+A window will open showing the rendered graphics:
+- Red rectangle (top-left)
+- Green diagonal line
+- Blue circle (center)
+- Yellow circle (top-right)
+- Magenta circle (bottom-left)
+- Cyan rectangle (bottom-right)
+- White border
 
-**QEMU's VExpress-A9 emulation has limited graphics support.** While the CLCD controller is emulated, QEMU may not display a graphical window by default. The code is working correctly (verified via UART output), but you may see a blank screen or no window at all.
+### Headless Verification
 
-### Verification
-The kernel outputs debug messages to the serial console:
-- "Kernel started"
-- "Framebuffer initialized"
-- "Screen cleared"
-- "Graphics drawn - check display"
+To verify graphics without a display window:
 
-If you see these messages, the graphics code is executing correctly.
+```bash
+./verify-framebuffer.sh
+```
 
-### Alternatives for Visual Output
-1. **Use real hardware**: VersatilePB or VExpress-A9 boards
-2. **Try different QEMU machine**: `-M raspi2` or `-M raspi3b` (requires code changes)
-3. **Use VNC**: Add `-vnc :0` to QEMU command and connect with VNC viewer
-4. **Framebuffer dump**: Add code to dump framebuffer contents to a file
+This captures a screenshot to `screenshot.png` and verifies the framebuffer has content.
 
-## Development
+## Project Structure
 
-Use QEMU to test your code without physical hardware, and gdb-multiarch (Linux) or arm-none-eabi-gdb (macOS) for debugging ARM binaries.
+```
+├── kernel/
+│   ├── start.S       # AArch64 boot code
+│   └── kernel.c      # Main kernel with UART and graphics demo
+├── gfx/
+│   ├── framebuffer.c # Mailbox-based framebuffer driver
+│   └── draw.c        # Drawing primitives (Bresenham algorithms)
+├── include/
+│   └── gfx.h         # Graphics API
+├── link.ld           # Linker script (loads at 0x80000)
+└── Makefile          # Build system
+```
+
+## Technical Details
+
+- **Target**: Raspberry Pi 3B (AArch64 Cortex-A53)
+- **QEMU Machine**: `raspi3b`
+- **Load Address**: 0x80000
+- **Framebuffer**: Allocated by GPU via mailbox protocol
+- **Serial**: PL011 UART at 0x3F201000
+- **Pixel Format**: 32-bit BGR (Blue-Green-Red)
+
+## Example Output
+
+```
+=== Raspberry Pi 3B Graphics Demo ===
+Kernel started
+Framebuffer initialized
+Screen cleared
+Drew red rectangle
+Drew green line
+Drew blue circle
+Drew white border
+
+*** Graphics complete! Check the QEMU window. ***
+```

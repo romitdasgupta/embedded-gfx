@@ -1,11 +1,15 @@
-// gfx/draw.c
+/*
+ * Drawing primitives
+ * Uses Bresenham algorithms for lines and circles
+ */
+
 #include "gfx.h"
 
 static inline int abs(int a) {
     return a > 0 ? a : -a;
 }
 
-void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
+void draw_line(int x0, int y0, int x1, int y1, unsigned int color) {
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
     int err = dx - dy, e2;
@@ -19,7 +23,7 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
     }
 }
 
-void draw_rect(int x, int y, int w, int h, uint32_t color) {
+void draw_rect(int x, int y, int w, int h, unsigned int color) {
     // Top and bottom edges
     for (int i = 0; i < w; i++) {
         fb_putpixel(x + i, y, color);
@@ -27,7 +31,7 @@ void draw_rect(int x, int y, int w, int h, uint32_t color) {
             fb_putpixel(x + i, y + h - 1, color);
         }
     }
-    // Left and right edges (skip corners already drawn, skip if h <= 2)
+    // Left and right edges
     if (h > 2) {
         for (int i = 1; i < h - 1; i++) {
             fb_putpixel(x, y + i, color);
@@ -36,7 +40,7 @@ void draw_rect(int x, int y, int w, int h, uint32_t color) {
     }
 }
 
-void draw_circle(int cx, int cy, int r, uint32_t color) {
+void draw_circle(int cx, int cy, int r, unsigned int color) {
     int x = -r, y = 0, err = 2 - 2 * r;
     do {
         fb_putpixel(cx - x, cy + y, color);

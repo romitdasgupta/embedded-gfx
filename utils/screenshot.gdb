@@ -14,7 +14,7 @@ continue
 finish
 
 # Dump framebuffer memory (640x480x2 bytes = 614400 bytes)
-dump binary memory framebuffer.raw 0x60000000 0x60096000
+dump binary memory framebuffer.raw 0x4C000000 0x4C096000
 
 # Convert with Python script (see screenshot.py)
 quit

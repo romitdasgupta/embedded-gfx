@@ -1,86 +1,167 @@
-// gfx/framebuffer.c
+/*
+ * Raspberry Pi 3B Framebuffer via Mailbox
+ * Uses the VideoCore mailbox interface to allocate framebuffer
+ */
+
 #include "gfx.h"
 
-// CLCD Controller registers for VExpress-A9
-#define CLCD_BASE       0x10020000
-#define CLCD_TIM0       (*(volatile uint32_t*)(CLCD_BASE + 0x00))
-#define CLCD_TIM1       (*(volatile uint32_t*)(CLCD_BASE + 0x04))
-#define CLCD_TIM2       (*(volatile uint32_t*)(CLCD_BASE + 0x08))
-#define CLCD_TIM3       (*(volatile uint32_t*)(CLCD_BASE + 0x0C))
-#define CLCD_UPBASE     (*(volatile uint32_t*)(CLCD_BASE + 0x10))
-#define CLCD_LPBASE     (*(volatile uint32_t*)(CLCD_BASE + 0x14))
-#define CLCD_CONTROL    (*(volatile uint32_t*)(CLCD_BASE + 0x18))
-#define CLCD_IMSC       (*(volatile uint32_t*)(CLCD_BASE + 0x1C))
+// Raspberry Pi 3B peripheral base
+#define MMIO_BASE       0x3F000000
 
-// Use VRAM at a safe location in SDRAM
-#define VRAM_BASE       0x60000000
+// Mailbox registers
+#define MBOX_BASE       (MMIO_BASE + 0x0000B880)
+#define MBOX_READ       (*(volatile unsigned int*)(MBOX_BASE + 0x00))
+#define MBOX_STATUS     (*(volatile unsigned int*)(MBOX_BASE + 0x18))
+#define MBOX_WRITE      (*(volatile unsigned int*)(MBOX_BASE + 0x20))
 
-static uint32_t* fb;
-static int width, height, pitch, bpp;
+#define MBOX_FULL       0x80000000
+#define MBOX_EMPTY      0x40000000
+#define MBOX_RESPONSE   0x80000000
+#define MBOX_CH_PROP    8  // Property channel
+
+// Property tags for framebuffer setup
+#define TAG_SET_PHYS_WH     0x48003
+#define TAG_SET_VIRT_WH     0x48004
+#define TAG_SET_DEPTH       0x48005
+#define TAG_SET_PIXEL_ORDER 0x48006
+#define TAG_GET_FRAMEBUFFER 0x40001
+#define TAG_GET_PITCH       0x40008
+#define TAG_END             0
+
+// Framebuffer state
+static volatile unsigned char* fb_ptr;
+static unsigned int fb_width;
+static unsigned int fb_height;
+static unsigned int fb_pitch;
+static unsigned int fb_bpp;
+
+// Mailbox message buffer - must be 16-byte aligned
+volatile unsigned int __attribute__((aligned(16))) mbox[36];
+
+// Send message to mailbox
+static int mbox_call(unsigned char channel) {
+    unsigned int r = ((unsigned int)((unsigned long)&mbox) & ~0xF) | (channel & 0xF);
+    
+    // Wait until we can write
+    while (MBOX_STATUS & MBOX_FULL) {
+        asm volatile("nop");
+    }
+    
+    // Write address + channel
+    MBOX_WRITE = r;
+    
+    // Wait for response
+    while (1) {
+        while (MBOX_STATUS & MBOX_EMPTY) {
+            asm volatile("nop");
+        }
+        
+        if (MBOX_READ == r) {
+            return mbox[1] == MBOX_RESPONSE;
+        }
+    }
+}
 
 void fb_init(int w, int h, int depth, void* base) {
-    width = w; height = h; bpp = depth;
-    pitch = w * (depth / 8);
+    (void)base;  // Unused - GPU allocates framebuffer
     
-    // Use VRAM_BASE if no base provided
-    if (base == 0) {
-        base = (void*)VRAM_BASE;
-    }
-    fb = (uint32_t*)base;
-
-    // Configure CLCD for 640x480 @ 16bpp (more compatible)
-    // TIM0: Horizontal timing (HBP=40, HFP=24, HSW=96, PPL=640)
-    // PPL format: (pixels_per_line - 1) in bits [7:2]
-    CLCD_TIM0 = ((640 - 1) << 2) | ((24 - 1) << 8) | ((40 - 1) << 16) | ((96 - 1) << 24);
-
-    // TIM1: Vertical timing (VBP=13, VFP=9, VSW=2, LPP=480)
-    CLCD_TIM1 = (480 - 1) | ((9 - 1) << 10) | ((13 - 1) << 16) | ((2 - 1) << 24);
-
-    // TIM2: Clock and signal polarities
-    CLCD_TIM2 = ((640 - 1) << 16) | (1 << 26) | (1 << 27);
-
-    // TIM3: Line end delay
-    CLCD_TIM3 = 0;
-
-    // Disable interrupts
-    CLCD_IMSC = 0;
-
-    // Set framebuffer address
-    CLCD_UPBASE = (uint32_t)base;
-    CLCD_LPBASE = (uint32_t)base;
-
-    // Control: Enable, 16bpp (565), TFT, power on
-    CLCD_CONTROL = (1 << 0)  |  // LCD enable
-                   (1 << 11) |  // LCD power enable
-                   (4 << 1)  |  // 16bpp 565 mode
-                   (1 << 5);    // TFT panel type
-}
-
-void fb_clear(uint32_t color) {
-    if (bpp == 16) {
-        uint16_t* fb16 = (uint16_t*)fb;
-        uint16_t color16 = (uint16_t)color;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                fb16[y * width + x] = color16;
-            }
-        }
+    fb_width = w;
+    fb_height = h;
+    fb_bpp = depth;
+    
+    // Build the mailbox message
+    mbox[0] = 35 * 4;           // Message size
+    mbox[1] = 0;                // Request code
+    
+    // Set physical display size
+    mbox[2] = TAG_SET_PHYS_WH;
+    mbox[3] = 8;                // Value buffer size
+    mbox[4] = 8;                // Request size
+    mbox[5] = w;                // Width
+    mbox[6] = h;                // Height
+    
+    // Set virtual display size
+    mbox[7] = TAG_SET_VIRT_WH;
+    mbox[8] = 8;
+    mbox[9] = 8;
+    mbox[10] = w;
+    mbox[11] = h;
+    
+    // Set depth (bits per pixel)
+    mbox[12] = TAG_SET_DEPTH;
+    mbox[13] = 4;
+    mbox[14] = 4;
+    mbox[15] = depth;
+    
+    // Set pixel order (0 = BGR, 1 = RGB)
+    mbox[16] = TAG_SET_PIXEL_ORDER;
+    mbox[17] = 4;
+    mbox[18] = 4;
+    mbox[19] = 1;               // RGB
+    
+    // Allocate framebuffer
+    mbox[20] = TAG_GET_FRAMEBUFFER;
+    mbox[21] = 8;
+    mbox[22] = 8;
+    mbox[23] = 4096;            // Alignment
+    mbox[24] = 0;               // Size (will be filled by GPU)
+    
+    // Get pitch (bytes per row)
+    mbox[25] = TAG_GET_PITCH;
+    mbox[26] = 4;
+    mbox[27] = 4;
+    mbox[28] = 0;               // Pitch (will be filled by GPU)
+    
+    mbox[29] = TAG_END;
+    
+    // Make the call
+    if (mbox_call(MBOX_CH_PROP) && mbox[20] == TAG_GET_FRAMEBUFFER && mbox[24] != 0) {
+        // Convert GPU address to ARM address
+        // GPU returns bus address, need to mask off upper bits
+        fb_ptr = (volatile unsigned char*)(unsigned long)(mbox[23] & 0x3FFFFFFF);
+        fb_pitch = mbox[28];
     } else {
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                fb[y * (pitch / 4) + x] = color;
+        // Fallback - should not happen on QEMU
+        fb_ptr = (volatile unsigned char*)0x3C100000;
+        fb_pitch = w * (depth / 8);
+    }
+}
+
+void fb_clear(unsigned int color) {
+    if (fb_bpp == 16) {
+        volatile unsigned short* fb16 = (volatile unsigned short*)fb_ptr;
+        unsigned short color16 = (unsigned short)color;
+        unsigned int pixels_per_row = fb_pitch / 2;
+        
+        for (unsigned int y = 0; y < fb_height; y++) {
+            for (unsigned int x = 0; x < fb_width; x++) {
+                fb16[y * pixels_per_row + x] = color16;
+            }
+        }
+    } else if (fb_bpp == 32) {
+        volatile unsigned int* fb32 = (volatile unsigned int*)fb_ptr;
+        unsigned int pixels_per_row = fb_pitch / 4;
+        
+        for (unsigned int y = 0; y < fb_height; y++) {
+            for (unsigned int x = 0; x < fb_width; x++) {
+                fb32[y * pixels_per_row + x] = color;
             }
         }
     }
 }
 
-void fb_putpixel(int x, int y, uint32_t color) {
-    if (x >= 0 && x < width && y >= 0 && y < height) {
-        if (bpp == 16) {
-            uint16_t* fb16 = (uint16_t*)fb;
-            fb16[y * width + x] = (uint16_t)color;
-        } else {
-            fb[y * (pitch / 4) + x] = color;
-        }
+void fb_putpixel(int x, int y, unsigned int color) {
+    if (x < 0 || x >= (int)fb_width || y < 0 || y >= (int)fb_height) {
+        return;
+    }
+    
+    if (fb_bpp == 16) {
+        volatile unsigned short* fb16 = (volatile unsigned short*)fb_ptr;
+        unsigned int pixels_per_row = fb_pitch / 2;
+        fb16[y * pixels_per_row + x] = (unsigned short)color;
+    } else if (fb_bpp == 32) {
+        volatile unsigned int* fb32 = (volatile unsigned int*)fb_ptr;
+        unsigned int pixels_per_row = fb_pitch / 4;
+        fb32[y * pixels_per_row + x] = color;
     }
 }
