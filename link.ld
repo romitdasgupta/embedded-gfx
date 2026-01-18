@@ -1,25 +1,32 @@
+/* Raspberry Pi 3B linker script */
+/* Kernel is loaded at 0x80000 by the GPU bootloader */
+
 ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x80000000;
+    . = 0x80000;
 
     .text : {
-        *(.text)
+        KEEP(*(.text.boot))
+        *(.text .text.*)
     }
 
     .rodata : {
-        *(.rodata*)
+        *(.rodata .rodata.*)
     }
 
     .data : {
-        *(.data*)
+        *(.data .data.*)
     }
 
-    .bss : {
+    .bss (NOLOAD) : {
+        . = ALIGN(16);
         __bss_start = .;
+        *(.bss .bss.*)
         *(COMMON)
-        *(.bss*)
         __bss_end = .;
     }
+
+    _end = .;
 }
