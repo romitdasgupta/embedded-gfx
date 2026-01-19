@@ -1,0 +1,5 @@
+---
+description: "This rule provides standard linting directives for C programs"
+alwaysApply: false
+---
+Use strict C linting. Assume that this code needs to be ISO26262 ASIL-D certified
